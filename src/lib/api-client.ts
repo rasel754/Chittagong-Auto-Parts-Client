@@ -287,7 +287,7 @@ export const api = {
           params: {
             page: params?.page || 1,
             limit: params?.limit || 10,
-            supplierName: params?.search || undefined,
+            search: params?.search?.trim() || undefined,
             startDate: params?.startDate,
             endDate: params?.endDate,
             sortBy: params?.sortBy || 'entryDate',
@@ -427,6 +427,7 @@ export const api = {
           params: {
             page: params?.page || 1,
             limit: params?.limit || 10,
+            search: params?.search?.trim() || undefined,
             startDate: params?.startDate,
             endDate: params?.endDate,
             sortBy: params?.sortBy || 'saleDate',
@@ -577,6 +578,7 @@ export const api = {
           params: {
             page: params?.page || 1,
             limit: params?.limit || 15,
+            search: params?.search?.trim() || undefined,
           },
         });
         const docs = res.data?.data || [];
