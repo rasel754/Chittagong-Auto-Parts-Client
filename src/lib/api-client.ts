@@ -48,11 +48,24 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor to handle session expiry and errors
+// Response interceptor to handle session expiry, cold starts, and errors
 apiClient.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<any>) => {
-    const requestUrl = error.config?.url || '';
+  async (error: AxiosError<any>) => {
+    const config = error.config as (InternalAxiosRequestConfig & { _retryCount?: number }) | undefined;
+    const requestUrl = config?.url || '';
+
+    // Auto-retry once for cold start or transient network glitch
+    if (
+      config &&
+      (!config._retryCount || config._retryCount < 1) &&
+      (error.message === 'Network Error' || !error.response || error.code === 'ECONNABORTED')
+    ) {
+      config._retryCount = (config._retryCount || 0) + 1;
+      await new Promise((res) => setTimeout(res, 1500));
+      return apiClient(config);
+    }
+
     if (
       error.response?.status === 401 &&
       !requestUrl.includes('/auth/me') &&
