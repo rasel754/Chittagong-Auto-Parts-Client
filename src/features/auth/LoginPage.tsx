@@ -60,7 +60,16 @@ export const LoginPage: React.FC = () => {
       toast.success('স্বাগতম!', 'সফলভাবে লগইন সম্পন্ন হয়েছে');
       navigate(from, { replace: true });
     } catch (err: any) {
-      toast.error(t('auth.invalidCredentials'), err.message);
+      const errorMsg = err?.message || t('auth.invalidCredentials');
+      if (
+        errorMsg === t('auth.invalidCredentials') ||
+        errorMsg === 'ফোন নম্বর অথবা পাসওয়ার্ড সঠিক নয়' ||
+        errorMsg.toLowerCase().includes('invalid phone number or password')
+      ) {
+        toast.error(t('auth.invalidCredentials'));
+      } else {
+        toast.error(t('auth.loginFailed', 'লগইন ব্যর্থ হয়েছে'), errorMsg);
+      }
     }
   };
 

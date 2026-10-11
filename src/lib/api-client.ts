@@ -33,7 +33,7 @@ export const apiClient: AxiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 15000,
+  timeout: 0,
 });
 
 // Request interceptor to attach JWT token if present
@@ -74,7 +74,11 @@ apiClient.interceptors.response.use(
  */
 export function extractErrorMessage(err: any, fallback: string = 'অনুরোধ সম্পন্ন করা যায়নি'): string {
   if (err.response?.data?.message) {
-    return err.response.data.message;
+    const msg = err.response.data.message;
+    if (msg === 'Invalid phone number or password') {
+      return 'ফোন নম্বর অথবা পাসওয়ার্ড সঠিক নয়';
+    }
+    return msg;
   }
   if (err.response?.data?.error?.details) {
     const details = err.response.data.error.details;
@@ -84,6 +88,12 @@ export function extractErrorMessage(err: any, fallback: string = 'অনুর�
     if (typeof details === 'object') {
       return Object.values(details).join(', ');
     }
+  }
+  if (err.code === 'ECONNABORTED' || (err.message && err.message.toLowerCase().includes('timeout'))) {
+    return 'সার্ভার থেকে উত্তর পেতে দেরি হচ্ছে, অনুগ্রহ করে আবার চেষ্টা করুন';
+  }
+  if (err.message === 'Network Error' || !err.response) {
+    return 'সার্ভারের সাথে সংযোগ স্থাপন করা যায়নি। ব্যাকএন্ড সার্ভার চালু আছে কিনা তা নিশ্চিত করুন।';
   }
   return err.message || fallback;
 }
