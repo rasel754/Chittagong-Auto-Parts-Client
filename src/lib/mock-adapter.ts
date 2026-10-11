@@ -16,6 +16,7 @@ import {
   PaginatedResponse,
   PaginationParams,
 } from '../types';
+import { matchesMixedQuery } from './search-utils';
 
 const STORAGE_KEYS = {
   SHOPS: 'cap_v2_shops',
@@ -176,12 +177,8 @@ export class MockAdapter {
     }
 
     if (params.search) {
-      const q = params.search.toLowerCase();
-      entries = entries.filter(
-        (e) =>
-          e.productName.toLowerCase().includes(q) ||
-          (e.sku && e.sku.toLowerCase().includes(q)) ||
-          e.supplierName.toLowerCase().includes(q)
+      entries = entries.filter((e) =>
+        matchesMixedQuery([e.productName, e.sku, e.supplierName], params.search!)
       );
     }
 
@@ -389,13 +386,8 @@ export class MockAdapter {
     }
 
     if (params.search) {
-      const q = params.search.toLowerCase();
-      sales = sales.filter(
-        (s) =>
-          s.productName.toLowerCase().includes(q) ||
-          s.invoiceNo.toLowerCase().includes(q) ||
-          (s.sku && s.sku.toLowerCase().includes(q)) ||
-          (s.customerName && s.customerName.toLowerCase().includes(q))
+      sales = sales.filter((s) =>
+        matchesMixedQuery([s.productName, s.sku, s.invoiceNo, s.customerName], params.search!)
       );
     }
 
@@ -611,13 +603,8 @@ export class MockAdapter {
     }
 
     if (params.search) {
-      const q = params.search.toLowerCase();
-      history = history.filter(
-        (h) =>
-          h.productName.toLowerCase().includes(q) ||
-          (h.sku && h.sku.toLowerCase().includes(q)) ||
-          h.referenceId.toLowerCase().includes(q) ||
-          (h.supplierOrCustomer && h.supplierOrCustomer.toLowerCase().includes(q))
+      history = history.filter((h) =>
+        matchesMixedQuery([h.productName, h.sku, h.referenceId, h.supplierOrCustomer], params.search!)
       );
     }
 

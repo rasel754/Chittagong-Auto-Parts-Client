@@ -21,6 +21,7 @@ import { getTodayDateString } from '@/lib/date';
 import { Shop, Product, Sale } from '@/types';
 import { ShoppingCart, Calculator, AlertCircle, Edit3 } from 'lucide-react';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { ProductSearchSelector } from './ProductSearchSelector';
 
 const saleSchema = z.object({
   shopId: z.string().min(1, 'দোকান আবশ্যক'),
@@ -92,13 +93,23 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
   const discount = watch('discount') || 0;
 
   // Fetch products for selected shop
-  const { data: products = [] } = useQuery<Product[]>({
+  const { data: products = [], isLoading: isProductsLoading } = useQuery<Product[]>({
     queryKey: ['products', selectedShopId],
     queryFn: () => api.getProducts(selectedShopId),
     enabled: open && !!selectedShopId,
   });
 
   const selectedProduct = products.find((p) => p.id === selectedProductId);
+
+  // When shop changes in create mode, reset product selection
+  const previousShopIdRef = React.useRef(selectedShopId);
+  useEffect(() => {
+    if (!isEditMode && previousShopIdRef.current && previousShopIdRef.current !== selectedShopId) {
+      setValue('productId', '', { shouldValidate: true });
+      setValue('sellingRate', 0);
+    }
+    previousShopIdRef.current = selectedShopId;
+  }, [selectedShopId, isEditMode, setValue]);
 
   // Sync form data on open / edit
   useEffect(() => {
@@ -233,29 +244,22 @@ export const SalesEntryModal: React.FC<SalesEntryModalProps> = ({
                 />
               </div>
 
-              {/* Product Selector with available units */}
-              <div className="space-y-1.5">
-                <label className="block text-sm font-medium text-foreground">
-                  {t('sales.selectProduct')} <span className="text-destructive">*</span>
-                </label>
-                <select
-                  {...register('productId')}
-                  className="w-full h-10 px-3 py-2 rounded-lg border border-input bg-background text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring shadow-sm"
-                >
-                  <option value="">{t('sales.selectProductPlaceholder')}</option>
-                  {products.map((p) => {
-                    const avail = p.availableStock + (isEditMode && initialData?.productId === p.id ? initialData.quantitySold : 0);
-                    return (
-                      <option key={p.id} value={p.id} disabled={avail <= 0}>
-                        {p.name} {p.sku ? `(${p.sku})` : ''} — [মজুদ: {formatQuantity(avail, lang)}]
-                      </option>
-                    );
-                  })}
-                </select>
-                {errors.productId && (
-                  <p className="text-xs text-destructive">{errors.productId.message}</p>
-                )}
-              </div>
+              {/* Searchable Product Selector with available units */}
+              <ProductSearchSelector
+                products={products}
+                selectedProductId={selectedProductId}
+                isLoading={isProductsLoading}
+                onSelectProduct={(product) => {
+                  setValue('productId', product ? product.id : '', { shouldValidate: true });
+                  if (product && !isEditMode) {
+                    setValue('sellingRate', product.sellingRate || 0, { shouldValidate: true });
+                  }
+                }}
+                isEditMode={isEditMode}
+                initialProductId={initialData?.productId}
+                initialQuantitySold={initialData?.quantitySold}
+                error={errors.productId?.message}
+              />
 
               {/* Stock Warning if low or exceeded */}
               {selectedProduct && (

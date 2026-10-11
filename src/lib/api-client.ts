@@ -116,6 +116,16 @@ export function extractErrorMessage(err: any, fallback: string = 'অনুর�
  */
 export const api = {
   // --- Auth ---
+  ping: async (): Promise<void> => {
+    if (!USE_MOCK) {
+      try {
+        await apiClient.get('/auth/ping');
+      } catch {
+        // Silently ignore ping errors
+      }
+    }
+  },
+
   login: async (phone: string, password: string): Promise<{ user: User; token: string }> => {
     if (!USE_MOCK) {
       try {
@@ -235,8 +245,10 @@ export const api = {
     if (!USE_MOCK) {
       try {
         if (shopId && shopId !== 'all') {
-          // Fetch shop inventory balances
-          const res = await apiClient.get(`/shops/${shopId}/inventory`);
+          // Fetch shop inventory balances (all tracked in-stock items)
+          const res = await apiClient.get(`/shops/${shopId}/inventory`, {
+            params: { limit: 1000, all: 'true' },
+          });
           const items = res.data?.data || [];
           return items.map((inv: any) => {
             const p = inv.productId || {};
@@ -255,7 +267,9 @@ export const api = {
           });
         } else {
           // Fetch global products
-          const res = await apiClient.get('/products');
+          const res = await apiClient.get('/products', {
+            params: { limit: 1000, all: 'true' },
+          });
           const products = res.data?.data || [];
           return products.map((p: any) => ({
             id: p.id || p._id,

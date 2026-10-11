@@ -8,7 +8,7 @@ import { Wrench, Lock, Phone, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LanguageToggle } from '@/components/common/LanguageToggle';
 import { useAuthStore } from './authStore';
-import { queryClient } from '@/lib/query-client';
+import { api } from '@/lib/api-client';
 import { toast, ToastContainer } from '@/components/ui/toast';
 import { toEnglishDigits } from '@/lib/number';
 
@@ -34,6 +34,11 @@ export const LoginPage: React.FC = () => {
 
   const from = (location.state as any)?.from?.pathname || '/dashboard';
 
+  // Pre-warm serverless instance & database connection in the background while user views the login page
+  useEffect(() => {
+    api.ping();
+  }, []);
+
   useEffect(() => {
     if (isAuthenticated) {
       navigate(from, { replace: true });
@@ -56,7 +61,6 @@ export const LoginPage: React.FC = () => {
     try {
       const cleanPhone = toEnglishDigits(data.phone).replace(/[^0-9]/g, '');
       await login(cleanPhone, data.password);
-      await queryClient.invalidateQueries();
       toast.success('স্বাগতম!', 'সফলভাবে লগইন সম্পন্ন হয়েছে');
       navigate(from, { replace: true });
     } catch (err: any) {
