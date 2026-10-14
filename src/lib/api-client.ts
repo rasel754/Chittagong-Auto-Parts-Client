@@ -632,7 +632,8 @@ export const api = {
   getDashboardData: async (
     shopId?: string,
     startDate?: string,
-    endDate?: string
+    endDate?: string,
+    period?: string
   ): Promise<{
     kpis: DashboardKPIs;
     salesTrend: SalesTrendDataPoint[];
@@ -645,9 +646,14 @@ export const api = {
       try {
         const isSingleShop = shopId && shopId !== 'all';
         const url = isSingleShop ? `/shops/${shopId}/dashboard` : '/dashboard/overview';
-        const params: Record<string, string> = {
-          period: startDate && endDate ? 'custom' : 'all_time',
-        };
+        const params: Record<string, string> = {};
+        if (period) {
+          params.period = period;
+        } else if (startDate || endDate) {
+          params.period = 'custom';
+        } else {
+          params.period = 'all_time';
+        }
         if (startDate) params.startDate = startDate;
         if (endDate) params.endDate = endDate;
 
@@ -723,28 +729,35 @@ export const api = {
           percentage: Math.round((sb.stockValue / totalVal) * 100),
         }));
 
-        // Build 7-day sales trend
-        const salesTrend: SalesTrendDataPoint[] = [];
-        const dateMap: Record<string, { salesAmount: number; unitsSold: number }> = {};
-
-        recentSales.forEach((s) => {
-          const d = (s.saleDate || '').slice(0, 10);
-          if (d) {
-            if (!dateMap[d]) dateMap[d] = { salesAmount: 0, unitsSold: 0 };
-            dateMap[d].salesAmount += s.totalSellingPrice;
-            dateMap[d].unitsSold += s.quantitySold;
-          }
-        });
-
-        const sortedDates = Object.keys(dateMap).sort();
-        if (sortedDates.length > 0) {
-          sortedDates.forEach((date) => {
-            salesTrend.push({
-              date,
-              salesAmount: dateMap[date].salesAmount,
-              unitsSold: dateMap[date].unitsSold,
-            });
+        // Build sales trend: use backend aggregation if provided, otherwise derive from recent sales
+        let salesTrend: SalesTrendDataPoint[] = [];
+        if (raw.salesTrend && Array.isArray(raw.salesTrend) && raw.salesTrend.length > 0) {
+          salesTrend = raw.salesTrend.map((st: any) => ({
+            date: st.date || st._id,
+            salesAmount: st.salesAmount || 0,
+            unitsSold: st.unitsSold || 0,
+          }));
+        } else {
+          const dateMap: Record<string, { salesAmount: number; unitsSold: number }> = {};
+          recentSales.forEach((s) => {
+            const d = (s.saleDate || '').slice(0, 10);
+            if (d) {
+              if (!dateMap[d]) dateMap[d] = { salesAmount: 0, unitsSold: 0 };
+              dateMap[d].salesAmount += s.totalSellingPrice;
+              dateMap[d].unitsSold += s.quantitySold;
+            }
           });
+
+          const sortedDates = Object.keys(dateMap).sort();
+          if (sortedDates.length > 0) {
+            sortedDates.forEach((date) => {
+              salesTrend.push({
+                date,
+                salesAmount: dateMap[date].salesAmount,
+                unitsSold: dateMap[date].unitsSold,
+              });
+            });
+          }
         }
 
         return {

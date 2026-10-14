@@ -661,12 +661,26 @@ export class MockAdapter {
 
     // Filter by Date for Sales and Stock Entries
     if (startDate) {
-      sales = sales.filter((s) => s.saleDate >= startDate);
-      stockEntries = stockEntries.filter((s) => s.entryDate >= startDate);
+      const startMs = new Date(startDate).getTime();
+      sales = sales.filter((s) => {
+        const d = s.saleDate ? new Date(s.saleDate).getTime() : new Date(s.createdAt).getTime();
+        return !isNaN(d) ? d >= startMs : true;
+      });
+      stockEntries = stockEntries.filter((s) => {
+        const d = s.entryDate ? new Date(s.entryDate).getTime() : new Date(s.createdAt).getTime();
+        return !isNaN(d) ? d >= startMs : true;
+      });
     }
     if (endDate) {
-      sales = sales.filter((s) => s.saleDate <= endDate);
-      stockEntries = stockEntries.filter((s) => s.entryDate <= endDate);
+      const endMs = new Date(endDate).getTime();
+      sales = sales.filter((s) => {
+        const d = s.saleDate ? new Date(s.saleDate).getTime() : new Date(s.createdAt).getTime();
+        return !isNaN(d) ? d <= endMs : true;
+      });
+      stockEntries = stockEntries.filter((s) => {
+        const d = s.entryDate ? new Date(s.entryDate).getTime() : new Date(s.createdAt).getTime();
+        return !isNaN(d) ? d <= endMs : true;
+      });
     }
 
     // Calculate Accurate KPIs
