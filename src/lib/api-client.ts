@@ -33,7 +33,7 @@ export const apiClient: AxiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 0,
+  timeout: 12000,
 });
 
 // Request interceptor to attach JWT token if present
@@ -55,14 +55,15 @@ apiClient.interceptors.response.use(
     const config = error.config as (InternalAxiosRequestConfig & { _retryCount?: number }) | undefined;
     const requestUrl = config?.url || '';
 
-    // Auto-retry once for cold start or transient network glitch
+    // Auto-retry once for cold start or transient network glitch (except login to avoid hanging UI)
     if (
       config &&
       (!config._retryCount || config._retryCount < 1) &&
+      !requestUrl.includes('/auth/login') &&
       (error.message === 'Network Error' || !error.response || error.code === 'ECONNABORTED')
     ) {
       config._retryCount = (config._retryCount || 0) + 1;
-      await new Promise((res) => setTimeout(res, 1500));
+      await new Promise((res) => setTimeout(res, 1000));
       return apiClient(config);
     }
 
@@ -178,7 +179,7 @@ export const api = {
       try {
         const res = await apiClient.get('/shops', { params: { limit: 100 } });
         const list = res.data?.data || res.data || [];
-        return list.map((s: any) => ({
+        const mapped = list.map((s: any) => ({
           id: s.id || s._id,
           name: s.name,
           code: s.code,
@@ -188,10 +189,25 @@ export const api = {
           createdAt: s.createdAt || new Date().toISOString(),
           updatedAt: s.updatedAt,
         }));
+        if (mapped.length > 0) {
+          try {
+            localStorage.setItem('cap_cached_shops', JSON.stringify(mapped));
+          } catch {}
+          return mapped;
+        }
       } catch (err: any) {
-        console.warn('Backend unavailable, fallback to mock adapter for shops:', err.message);
+        console.warn('Backend unavailable, fallback to cached or mock shops:', err.message);
       }
     }
+    try {
+      const cached = localStorage.getItem('cap_cached_shops');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {}
     return MockAdapter.getShops();
   },
 
